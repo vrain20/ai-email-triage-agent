@@ -45,7 +45,7 @@ The robot automatically:
 
 Your project will be at:
 ```
-https://github.com/your-username/ai-email-triage-agent
+https://github.com/vrain.20/ai-email-triage-agent
 ```
 
 ---
