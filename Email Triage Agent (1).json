@@ -1,0 +1,443 @@
+{
+  "name": "Email Triage Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1152,
+        208
+      ],
+      "id": "67bf8fea-9a9d-4e78-a1fd-9a0d7d401dab",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "H4R4InnGV8B3I1WW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    id: $input.item.json.id,\n    threadId: $input.item.json.threadId,\n    sender: $input.item.json.from,\n    subject: $input.item.json.subject,\n    body: $input.item.json.text || $input.item.json.snippet || \"\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        208
+      ],
+      "id": "95242453-9eaf-41bf-ada0-02df36bdb0d6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.item.json;\n\n// Get the text from Gemini response\nconst raw = response.text || \n            response.output || \n            response.response ||\n            response.content ||\n            JSON.stringify(response);\n\n// Clean and parse JSON\nconst cleaned = raw.replace(/```json|```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch(e) {\n  parsed = {\n    category: \"FYI\",\n    reason: \"Could not parse response\",\n    suggested_reply: \"\"\n  };\n}\n\nreturn [{ \n  json: {\n    ...parsed,\n    emailId: $('Code in JavaScript').item.json.id,\n    threadId: $('Code in JavaScript').item.json.threadId,\n    sender: $('Code in JavaScript').item.json.sender,\n    subject: $('Code in JavaScript').item.json.subject\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        208
+      ],
+      "id": "77e1531d-1be3-48c9-ad8f-2dff0c62bf17",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "URGENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0a9f69c6-31ea-4abf-9733-70865953e5b3"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "33d31858-caca-4462-98b7-e3622d378b3e",
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "ACTION_REQUIRED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "61c79aeb-71b6-4917-a594-6d9177196f8e",
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "FYI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "08ff313f-f04d-4ed5-a0b7-ba71ee060327",
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "NEWSLETTER",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -208,
+        208
+      ],
+      "id": "9cf5c894-7f46-431e-bf16-11d675e5fe13",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Code in JavaScript').item.json.id }}",
+        "labelIds": [
+          "Label_8678837473693724299"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8a0cbead-222d-42c6-a24d-39c3fbe9c44e",
+      "name": "Add label to message",
+      "webhookId": "1964fe85-55f4-4413-b8b3-4daca6fd03ad",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "H4R4InnGV8B3I1WW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Code in JavaScript').item.json.id }}",
+        "labelIds": [
+          "Label_3353105971697943706"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        112
+      ],
+      "id": "a5f0c33e-c24a-4e0b-878a-f14f5e11a8cb",
+      "name": "Add label to message1",
+      "webhookId": "fe68153f-c7b7-43a8-9c83-58547fa3d730",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "H4R4InnGV8B3I1WW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Code in JavaScript').item.json.id }}",
+        "labelIds": [
+          "Label_7365796540553557747"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        304
+      ],
+      "id": "5e834500-d5b9-46ef-be04-19976c6d91da",
+      "name": "Add label to message2",
+      "webhookId": "1bfcbfb3-6e1e-4e31-8490-22e4115040e2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "H4R4InnGV8B3I1WW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Code in JavaScript').item.json.id }}",
+        "labelIds": [
+          "Label_1245507478393777275"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        416
+      ],
+      "id": "2eea4eb4-b3ff-4081-8b50-a27d0accd3a6",
+      "name": "Add label to message3",
+      "webhookId": "fb12a6d5-1455-4c6c-897f-876bc21dd63f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "H4R4InnGV8B3I1WW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Code in JavaScript').item.json.subject }}",
+        "message": "={{ $('Code in JavaScript1').item.json.suggested_reply }}",
+        "options": {
+          "sendTo": "={{ $('Code in JavaScript').item.json.sender }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "2b47acf5-0f3e-4ff0-bbc6-c64a35770483",
+      "name": "Create a draft",
+      "webhookId": "40958b17-99e1-40ce-97ec-99280bc1e4a9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "H4R4InnGV8B3I1WW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this email and reply ONLY with JSON:\n\nSender: {{ $('Code in JavaScript').item.json.sender }}\nSubject: {{ $('Code in JavaScript').item.json.subject }}\nBody: {{ $('Code in JavaScript').item.json.body }}\n\nClassify as: URGENT, ACTION_REQUIRED, FYI, or NEWSLETTER\n\nReply with ONLY this JSON:\n{\n  \"category\": \"URGENT\",\n  \"reason\": \"short reason here\",\n  \"suggested_reply\": \"draft reply here or empty\"\n}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an email classifier. Always respond with valid JSON only."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -688,
+        208
+      ],
+      "id": "5b9854ef-0891-4121-a7c6-6e5a427a1d07",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        208
+      ],
+      "id": "f1abe393-acbf-4d5e-aef0-2e73b51a2910",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7lU0ZF0VHIQPLN64",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "0891c21e-47a7-448a-b713-84d072311a43",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d9d36dd88245f50f60066d0a5a0d28dbd7b4985d04401c0d4001702d24bf3f82"
+  },
+  "id": "QFWW8jryRffaZH1C",
+  "tags": []
+}
